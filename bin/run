@@ -1,0 +1,30 @@
+#!/usr/bin/env bash
+# shellcheck disable=SC1091 # Using dynamic lookups for sources files
+
+source "$(dirname "${0}")/../lib/common.sh"
+source "$(dirname "${0}")/../lib/search.sh"
+source "$(dirname "${0}")/../lib/arguments.sh"
+source "$(dirname "${0}")/../lib/run.sh"
+
+check_variables \
+  GITHUB_WORKSPACE WORKING_DIRECTORY CONFIGURATIONS \
+  CONFIG RECURSIVE \
+  OUTPUT_FORMAT OUTPUT_MODE
+check_commands find terraform-docs
+
+echo "${WORKING_DIRECTORY}" | while read -r base; do
+  show_debug "searching for configurations in ${base}"
+
+  # Iterate over all the possible working directories provided and then find all
+  # the unique Terraform configurations within to be passed onto the next steps
+  find_configurations "${base}" "${RECURSIVE}" \
+    | while read -r configuration; do
+
+      show_debug "processing the configuration in ${configuration}"
+      arguments=$(build_settings "${base}" "${configuration}" "${CONFIG}")
+
+      show_debug "running terraform-docs ${arguments}"
+      # shellcheck disable=SC2086 # $arguments does not need quoting
+      run_terraform_docs "${configuration}" ${arguments}
+    done
+done

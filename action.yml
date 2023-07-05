@@ -1,0 +1,130 @@
+---
+name: terraform-docs
+author: Jonathan Wright
+description: |-
+  A GitHub Action for running `terraform-docs` against one or more Terraform
+  configurations inside a repository.
+
+inputs:
+  working-directory:
+    description: |-
+      A list of one or more working directories that `terraform-docs` should be
+      run within, with each directory on a new line when required. Use `.` for
+      the root directory of the repository.
+    required: true
+  config:
+    description: |-
+      [optional] The configuration file for `terraform-docs` which will be given
+      when it is run within each of the working directories. If the file resides
+      in the directory being run, that has priority, followed by the working
+      directory, and then the `root` of the repository.
+    default: ''
+  recursive:
+    description: |-
+      [optional] Recursively scan each of the `working-directory` entries for
+      directories with `.tf` files for processing by `terraform-docs`.
+    default: 'false'
+  output-format:
+    description: |-
+      [optional] The output type to generate the content from `terraform-docs`
+      (e.g. `markdown table`). This is ignored if `config-file` is set.
+    default: 'markdown table'
+  output-mode:
+    description: |-
+      [optional] One of the three `replace`, `inject`, or `print` modes for
+      handling the generated content. This is ignored if `config-file` is set.
+    default: 'inject'
+  indent:
+    description: |-
+      [optional] When using one of the `markdown` formats, set how deep the
+      header indentation is for the generated content. This is ingored if
+      `config-file` is set.
+    default: '2'
+  output-template:
+    description: |-
+      [optional] The template to use when generating content before being
+      processed by the selected `output-mode` into the `output-file`. Can be
+      useful for adding comments when using `inject`. This is ignored if
+      `config-file` is set.
+    default: |-
+      <!-- BEGIN_TF_DOCS -->
+      {{ .Content }}
+      <!-- END_TF_DOCS -->
+  output-file:
+    description: |-
+      [optional] This is the name of the file to work with based on the
+      `output-mode` configured, and to which the generated content will be
+      handled. This is ignored if `config-file` is set.
+    default: 'README.md'
+  lockfile:
+    description: |-
+      [optional] Read the `.terraform.lock.hcl` file in the configuration, if
+      present, for the versions of the Terraform providers used in this
+      configuration. This is ignored if `config-file` is set.
+    default: 'true'
+  fail-on-diff:
+    description: |-
+      [optional] Set whether or not to fail the GitHub Action is any changes are
+      detected in the repository after `terraform-docs` has been run.
+    default: 'false'
+  show-on-diff:
+    description: |-
+      [optional] Set whether or not to show any changes detected in the
+      repository after `terraform-docs` has been run.
+    default: 'true'
+  git-push:
+    description: |-
+      [optional] Set whether or not to stage, commit, and push any changes made
+      in the repository after running `terraform-docs` back to the branch.
+    default: 'false'
+  git-name:
+    description: |-
+      [optional] Set the name of the comitter for git if changes are staged
+      and comitted. This is ignored unless `git-push` is set.
+    default: 'github-actions[bot]'
+  git-email:
+    description: |-
+      [optional] Set the email of the comitter for git if changes are staged
+      and comitted. This is ignored unless `git-push` is set.
+    default: '41898282+github-actions[bot]@users.noreply.github.com'
+  git-title:
+    description: |-
+      [optional] Set the title of the commit message (i.e. the first line) if
+      any changes are staged and commited back to the repository after
+      `terraform-docs` has been run. This is ignored unless `git-push` is set.
+    default: 'Syncing changes made by terraform-docs'
+  git-body:
+    description: |-
+      [optional] Set the body of the commit message (if required) if any changes
+      are staged and commited back to the repository after `terraform-docs` has
+      been run. This is ignored unless `git-push` is set.
+    default: ''
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Run terraform-docs in the repository
+      id: run
+      shell: bash
+      env:
+        WORKING_DIRECTORY: ${{ inputs.working-directory }}
+        CONFIG: ${{ inputs.config }}
+        RECURSIVE: ${{ inputs.recursive }}
+        OUTPUT_FORMAT: ${{ inputs.output-format }}
+        OUTPUT_MODE: ${{ inputs.output-mode }}
+        INDENT: ${{ inputs.indent }}
+        OUTPUT_TEMPALTE: ${{ inputs.output-template }}
+        OUTPUT_FILE: ${{ inputs.output-file }}
+        FAIL_ON_DIFF: ${{ inputs.fail-on-diff }}
+        SHOW_ON_DIFF: ${{ inputs.show-on-diff }}
+        GIT_PUSH: ${{ inputs.git-push }}
+        GIT_NAME: ${{ inputs.git-name }}
+        GIT_EMAIL: ${{ inputs.git-email }}
+        GIT_TITLE: ${{ inputs.git-title }}
+        GIT_BODY: ${{ inputs.git-body }}
+      run: |-
+        ${{ github.action_path }}/bin/run
+
+branding:
+  icon: file-text
+  color: gray-dark
