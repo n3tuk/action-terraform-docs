@@ -1,0 +1,122 @@
+---
+version: 3
+interval: 1000ms
+output: group
+
+vars:
+  bin_name: pull-requester
+
+tasks:
+  default:
+    cmds:
+      - task: clean
+      - task: test
+
+  test:
+    desc: Run the unit tests for the scripts
+    aliases:
+      - t
+    sources:
+      - "bin/*"
+      - "lib/*.sh"
+      - "tests/*.bats"
+      - "tests/helpers/*.bash"
+    env:
+      BATS_LIB_PATH: lib:/usr/lib
+    cmds:
+      # Enter key to the same pane as it is running in so that it exits
+      # scrolling mode and starts refreshing the screen as new tests are run
+      - cmd: |-
+          test -n "$TMUX_PANE" && tmux send-keys -t $TMUX_PANE Enter
+        silent: true
+      - cmd: |-
+          bats --pretty tests/
+
+  fmt:
+    desc: Properly format all the bash and bats files
+    aliases:
+      - f
+    sources:
+      - "bin/*"
+      - "lib/*.sh"
+      - "tests/*.bats"
+    cmds:
+      - cmd: |-
+          shfmt \
+            --indent 2 --binary-next-line --case-indent \
+            --write --language-dialect bash --simplify \
+            bin/* lib/*.sh tests/helpers/*.bash
+      - cmd: |-
+          shfmt \
+            --indent 2 --binary-next-line --case-indent \
+            --write --language-dialect bats --simplify \
+            tests/*.bats
+
+  docs:
+    desc: Generate the documentation from action.yml to README.md
+    aliases:
+      - d
+    sources:
+      - "README.md"
+      - "action.yml"
+    cmds:
+      - cmd: |-
+          INPUTS=$(yq -r \
+              'if has("inputs") then .inputs else [] end
+                | to_entries[]
+                | ( "| "
+                  + ("`" + .key + "`")
+                  + " | "
+                  + (.value.description | gsub("[\\n]"; " ") | gsub("\\[optional\\] "; ""))
+                  + " | "
+                  + (.value | if has("required") then ("`" + (.required | tostring) + "`") else "`false`" end)
+                  + " | "
+                  + (.value | if (has("default") and .default != "") then ("`" + (.default | tostring | gsub("[\\n]"; "<br />")) + "`") else "" end)
+                  + " |")' \
+              action.yml)
+
+          OUTPUTS=$(yq -r \
+              'if has("outputs") then .outputs else [] end
+                | to_entries[]
+                | ( "| "
+                  + ("`" + .key + "`")
+                  + " | "
+                  + (.value.description | gsub("[\\n]"; ""))
+                  + " |")' \
+            action.yml)
+
+          sed -i "/^<!-- BEGIN_ACTION_DOCS -->/{:b;$!N;/<!-- END_ACTION_DOCS -->$/!bb;s/<!-- BEGIN_ACTION_DOCS .* END_ACTION_DOCS -->//}" README.md
+
+          ( echo "<!-- BEGIN_ACTION_DOCS -->"
+            echo
+
+            if [[ -n "${INPUTS}" ]]
+            then
+              echo "## Action Inputs"
+              echo "| Input | Description | Required | Default |"
+              echo "| :--- | :--- | :---: | :--- |"
+              echo "${INPUTS}"
+              echo
+            fi
+
+            if [[ -n "${OUTPUTS}" ]]
+            then
+              echo "## Action Outputs"
+              echo "| Output | Description |"
+              echo "| :--- | :--- |"
+              echo "${OUTPUTS}"
+              echo
+            fi
+
+            echo "<!-- END_ACTION_DOCS -->"
+          ) >> README.md
+        silent: true
+      - cmd: prettier -w README.md
+
+  clean:
+    desc: Clean up temporary files and locations
+    aliases:
+      - c
+    run: once
+    cmds:
+      - cmd: rm -rf .task
